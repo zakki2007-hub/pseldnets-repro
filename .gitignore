@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.cache/
+.venv/
+venv/
+
+# upstream artifacts (too large for git)
+ckpts/
+datasets/
+_downloads/
+_hdf5/
+logs/
+*.ckpt
+*.zip
+*.flac
+*.h5
+metrics.csv

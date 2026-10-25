@@ -1,0 +1,30 @@
+--- a/src/evaluate.py
++++ b/src/evaluate.py
+@@ -257,9 +257,13 @@
+             print(words)
+             # f = open(path, 'a')
+             # f.writelines(words+'\n')
+-            for cls_cnt in range(args.nb_classes):
++            # NOTE: classwise_test_scr only keeps classes present in the reference
++            # (SELD_metrics drops classes with LE == 180), so iterate its length
++            # instead of args.nb_classes and print the real class id (last row).
++            for cls_cnt in range(len(classwise_test_scr[0])):
++                cls_id = int(classwise_test_scr[-1][cls_cnt])
+                 words = '{}\t{:0.3f}\t{:0.3f}\t{:0.3f}\t{:0.3f}\t{:0.3f}'\
+-                    .format(cls_cnt, classwise_test_scr[0][cls_cnt], classwise_test_scr[1][cls_cnt], classwise_test_scr[2][cls_cnt], classwise_test_scr[3][cls_cnt], classwise_test_scr[4][cls_cnt])
++                    .format(cls_id, classwise_test_scr[0][cls_cnt], classwise_test_scr[1][cls_cnt], classwise_test_scr[2][cls_cnt], classwise_test_scr[3][cls_cnt], classwise_test_scr[4][cls_cnt])
+                 print(words)
+                 # f.writelines(words+'\n')
+             words = 'Sum_macro\t{:0.3f}\t{:0.3f}\t{:0.3f}\t{:0.3f}\t{:0.3f}'.format(ER, F, LE, LR, seld_scr)
+@@ -289,9 +293,9 @@
+             .format(LE[0], '[{:0.3f}, {:0.3f}]'.format(LE[1][0], LE[1][1]) , 100*LR[0],'[{:0.3f}, {:0.3f}]'.format(100*LR[1][0], 100*LR[1][1]) ))
+         print('Classwise results on unseen test data')
+         print('Class\tER\tF\tLE\tLR\tSELD_score')
+-        for cls_cnt in range(args.nb_classes):
++        for cls_cnt in range(len(classwise_test_scr[0][0])):
+             print('{}\t{:0.3f} {}\t{:0.3f} {}\t{:0.3f} {}\t{:0.3f} {}\t{:0.3f} {}'.format(
+-                cls_cnt, 
++                int(classwise_test_scr[0][-1][cls_cnt]), 
+                 classwise_test_scr[0][0][cls_cnt], '[{:0.3f}, {:0.3f}]'\
+                     .format(classwise_test_scr[1][0][cls_cnt][0], classwise_test_scr[1][0][cls_cnt][1]), 
+                 classwise_test_scr[0][1][cls_cnt], '[{:0.3f}, {:0.3f}]'\

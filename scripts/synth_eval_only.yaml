@@ -1,0 +1,44 @@
+audio_type: foa
+audio_feature: logmelIV
+sample_rate: 24000
+nfft: 1024
+n_mels: 64
+hoplen: 240
+window: hann
+train_chunklen_sec: 10
+train_hoplen_sec: 10
+test_chunklen_sec: 10
+test_hoplen_sec: 10
+train_dataset:
+  test360_ov3:
+  - fold1_room1
+  - fold1_room2
+  - fold1_room3
+  - fold1_room4
+  - fold1_room5
+  - fold1_room6
+  - fold1_room7
+  - fold1_room8
+  - fold1_room9
+valid_dataset:
+  test360_ov3:
+  - fold1_room1
+  - fold1_room2
+  - fold1_room3
+  - fold1_room4
+  - fold1_room5
+  - fold1_room6
+  - fold1_room7
+  - fold1_room8
+  - fold1_room9
+test_dataset:
+  test360_ov3:
+  - fold1_room1
+  - fold1_room2
+  - fold1_room3
+  - fold1_room4
+  - fold1_room5
+  - fold1_room6
+  - fold1_room7
+  - fold1_room8
+  - fold1_room9

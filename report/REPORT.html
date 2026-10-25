@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>PSELDNets 评测报告 — test360_ov3</title>
+<style>
+  @page { size: A4; margin: 20mm 17mm 18mm;
+          @bottom-center { content: "PSELDNets 评测报告 · " counter(page) " / " counter(pages);
+                            font-size: 9px; color: #6b7280; } }
+  body { font-family: "Noto Sans CJK SC","Source Han Sans SC","WenQuanYi Micro Hei",sans-serif;
+         max-width: 980px; margin: 36px auto; padding: 0 28px; color:#1f2328; line-height:1.65; font-size:15px; }
+  h1 { font-size: 25px; border-bottom: 2px solid #d0d7de; padding-bottom: 10px; }
+  h2 { font-size: 19px; margin-top: 30px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; }
+  th, td { border: 1px solid #d0d7de; padding: 5px 8px; text-align: left; }
+  th { background: #f6f8fa; }
+  tr:nth-child(even) td { background: #fbfcfd; }
+  code { background:#f3f4f6; padding:2px 5px; border-radius:4px; font-size: 12.5px; }
+  pre { background:#f6f8fa; padding:14px; border-radius:6px; overflow-x:auto; font-size: 12px; }
+  pre code { background:none; padding:0; }
+  blockquote { border-left:4px solid #d0d7de; margin:0; padding-left:14px; color:#57606a; }
+  @media print { body { max-width:none; margin:0; padding:0; font-size:10.5pt; }
+                  h2 { page-break-after: avoid; } table { page-break-inside: avoid; } }
+</style></head><body>
+<h1 id="pseldnets-test360_ov3">PSELDNets 评测报告 — 合成测试集 <code>test360_ov3</code></h1>
+<p>日期：2026-10-21 · 工作目录：<code>/data/PSELDNets</code></p>
+<h2 id="1">1. 测试设置</h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>环境</td>
+<td>conda <code>pseldnets</code>（Python 3.11，torch 2.2.1+cu121，lightning 2.2.1）</td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>NVIDIA GeForce RTX 4090 24 GB</td>
+</tr>
+<tr>
+<td>模型</td>
+<td><code>ckpts/mACCDOA-HTSAT-0.567.ckpt</code>（mACCDOA + HTS-AT，34.6 M 参数）</td>
+</tr>
+<tr>
+<td>数据</td>
+<td><code>datasets/test360_ov3</code>，360 个 1 分钟片段，最大重叠数 3；切为 2160 个 10 s chunk</td>
+</tr>
+<tr>
+<td>真值</td>
+<td><code>datasets/test360_ov3/metadata</code>（360 个 DCASE 格式 csv，46 132 个"类-段"track 标注）</td>
+</tr>
+<tr>
+<td>指标</td>
+<td>DCASE SELD：ER / F / LE / LR / SELD_scr（DOA 阈值 20°，1 s 段，macro 对 158 个出现类平均）</td>
+</tr>
+<tr>
+<td>SED 阈值</td>
+<td><code>sed_threshold=0.5</code>（<code>configs/infer.yaml</code> 默认值）</td>
+</tr>
+</tbody>
+</table>
+<p>推理命令（与 README Quick evaluate 一致）：</p>
+<pre><code class="language-bash">python src/infer.py experiment=synth_maccdoa data=synth_eval_only mode=test \
+  ckpt_path=ckpts/mACCDOA-HTSAT-0.567.ckpt \
+  model.kwargs.pretrained_path=null model.batch_size=8 num_workers=4 compile=false
+</code></pre>
+<ul>
+<li>2160 个 chunk 推理约 1 分钟，输出 360 个预测 csv。</li>
+<li>两次独立运行（<code>21-03-18</code> 与 <code>21-48-59</code>）的预测文件逐字节一致 → 推理可复现。</li>
+<li>模型自身 <code>trainer.validate</code>（同一数据、同一 pipeline）日志给出 macro SELD <strong>0.601</strong>，与下文外部评测 <strong>0.600</strong> 一致，说明评测链路没有对齐/版本问题。</li>
+</ul>
+<h2 id="2">2. 总体结果</h2>
+<table>
+<thead>
+<tr>
+<th>平均方式</th>
+<th>ER↓</th>
+<th>F↑</th>
+<th>LE↓</th>
+<th>LR↑</th>
+<th>SELD↓</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macro（论文采用）</td>
+<td>0.7793</td>
+<td>22.07 %</td>
+<td>20.16°</td>
+<td>26.96 %</td>
+<td><strong>0.6002</strong></td>
+</tr>
+<tr>
+<td>micro</td>
+<td>0.7793</td>
+<td>25.37 %</td>
+<td>19.06°</td>
+<td>29.92 %</td>
+<td>0.5831</td>
+</tr>
+</tbody>
+</table>
+<p>误差分解（类-段级别）：Nref = 46 132，Substitution = 16 584，Deletion = 15 763，Insertion = 3 602，因此</p>
+<p><code>ER = (16584 + 15763 + 3602) / 46132 = 0.779</code></p>
+<p>检测层面（20° 匹配）：TP = 9 640，FP = 16 016，FP(空间超限) = 4 170，FN = 32 347
+→ <strong>recall@20° = 22.96 %，precision@20° = 32.32 %</strong>。</p>
+<h2 id="3-sed-sed_threshold">3. SED 阈值敏感性（同一模型，仅改 <code>sed_threshold</code>）</h2>
+<table>
+<thead>
+<tr>
+<th>sed_threshold</th>
+<th>ER</th>
+<th>F(macro)</th>
+<th>LE</th>
+<th>LR</th>
+<th>SELD(macro)</th>
+<th>SELD(micro)</th>
+<th>Insertions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.2</td>
+<td>1.0265</td>
+<td>21.57 %</td>
+<td>22.38°</td>
+<td>34.44 %</td>
+<td>0.6477</td>
+<td>0.6320</td>
+<td>18 891</td>
+</tr>
+<tr>
+<td>0.3</td>
+<td>0.8659</td>
+<td>22.00 %</td>
+<td>21.64°</td>
+<td>31.15 %</td>
+<td>0.6137</td>
+<td>0.5961</td>
+<td>9 902</td>
+</tr>
+<tr>
+<td><strong>0.5</strong></td>
+<td><strong>0.7793</strong></td>
+<td><strong>22.07 %</strong></td>
+<td><strong>20.16°</strong></td>
+<td>26.96 %</td>
+<td><strong>0.6002</strong></td>
+<td><strong>0.5831</strong></td>
+<td>3 602</td>
+</tr>
+<tr>
+<td>0.7</td>
+<td>0.7795</td>
+<td>21.78 %</td>
+<td>18.17°</td>
+<td>23.11 %</td>
+<td>0.6079</td>
+<td>0.5943</td>
+<td>1 421</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>阈值降到 0.2/0.3：召回上升（LR 34 %/31 %），但插入数暴涨，ER 反而恶化。</li>
+<li>阈值升到 0.7：插入减少、定位误差略降，但漏检显著增加（LR 23 %）。</li>
+<li><strong>F 在所有阈值下都停在 21–22 %</strong>：瓶颈是类别判别能力，而不是工作点选择；0.5 恰好是 ER/F/SELD 的平衡点。</li>
+</ul>
+<h2 id="4-fold1_room19-40">4. 按房间（fold1_room1…9，每房间 40 个片段）</h2>
+<table>
+<thead>
+<tr>
+<th>房间</th>
+<th>ER</th>
+<th>F(macro)</th>
+<th>LE</th>
+<th>LR</th>
+<th>SELD(macro)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>room1</td>
+<td>0.785</td>
+<td>30.47 %</td>
+<td>19.45°</td>
+<td>38.98 %</td>
+<td>0.5496</td>
+</tr>
+<tr>
+<td>room2</td>
+<td>0.733</td>
+<td>34.29 %</td>
+<td>18.24°</td>
+<td>41.63 %</td>
+<td><strong>0.5188</strong>（最好）</td>
+</tr>
+<tr>
+<td>room3</td>
+<td>0.756</td>
+<td>30.97 %</td>
+<td>18.44°</td>
+<td>39.03 %</td>
+<td>0.5396</td>
+</tr>
+<tr>
+<td>room4</td>
+<td>0.742</td>
+<td>32.62 %</td>
+<td>18.98°</td>
+<td>40.09 %</td>
+<td>0.5299</td>
+</tr>
+<tr>
+<td>room5</td>
+<td>0.798</td>
+<td>30.50 %</td>
+<td>17.44°</td>
+<td>37.39 %</td>
+<td>0.5540</td>
+</tr>
+<tr>
+<td>room6</td>
+<td>0.793</td>
+<td>31.18 %</td>
+<td>20.45°</td>
+<td>41.11 %</td>
+<td>0.5460</td>
+</tr>
+<tr>
+<td>room7</td>
+<td>0.835</td>
+<td>20.97 %</td>
+<td>21.03°</td>
+<td>35.22 %</td>
+<td><strong>0.5974</strong>（最差）</td>
+</tr>
+<tr>
+<td>room8</td>
+<td>0.777</td>
+<td>31.07 %</td>
+<td>16.71°</td>
+<td>36.38 %</td>
+<td>0.5488</td>
+</tr>
+<tr>
+<td>room9</td>
+<td>0.795</td>
+<td>25.48 %</td>
+<td>24.11°</td>
+<td>40.86 %</td>
+<td>0.5664</td>
+</tr>
+</tbody>
+</table>
+<p>房间间差异 0.519–0.597（约 0.08），room7 误差率最高（0.835），room9 定位误差最大（24.1°）。没有出现某个房间完全失效的情况。</p>
+<h2 id="5-158170">5. 逐类表现（158/170 类在测试集中出现）</h2>
+<ul>
+<li>逐类 F 的中位数仅 <strong>21.1 %</strong>；F &gt; 50 % 的类只有 <strong>7</strong> 个，F &lt; 10 % 的类有 <strong>41</strong> 个。</li>
+<li>高支持度（GT 段数 ≥ 500）类的中位 F 仅 28.6 %。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>类别（高支持度中最好）</th>
+<th>nref</th>
+<th>F</th>
+<th>LE</th>
+<th>LR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Drum</td>
+<td>583</td>
+<td>56.6 %</td>
+<td>17.4°</td>
+<td>69.3 %</td>
+</tr>
+<tr>
+<td>Writing</td>
+<td>462</td>
+<td>50.8 %</td>
+<td>18.5°</td>
+<td>64.5 %</td>
+</tr>
+<tr>
+<td>Wind</td>
+<td>358</td>
+<td>50.3 %</td>
+<td>18.3°</td>
+<td>55.7 %</td>
+</tr>
+<tr>
+<td>Packing tape, duct tape</td>
+<td>649</td>
+<td>50.1 %</td>
+<td>15.7°</td>
+<td>55.9 %</td>
+</tr>
+<tr>
+<td>Laughter</td>
+<td>715</td>
+<td>45.9 %</td>
+<td>15.1°</td>
+<td>61.6 %</td>
+</tr>
+<tr>
+<td>Snare drum</td>
+<td>634</td>
+<td>42.6 %</td>
+<td>20.0°</td>
+<td>62.5 %</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>类别（高支持度中最差）</th>
+<th>nref</th>
+<th>F</th>
+<th>LE</th>
+<th>LR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dishes, pots, and pans</td>
+<td>340</td>
+<td>1.9 %</td>
+<td>20.5°</td>
+<td>2.6 %</td>
+</tr>
+<tr>
+<td>Chicken, rooster</td>
+<td>338</td>
+<td>2.8 %</td>
+<td>16.2°</td>
+<td>3.0 %</td>
+</tr>
+<tr>
+<td>Subway, metro, underground</td>
+<td>704</td>
+<td>3.9 %</td>
+<td>35.6°</td>
+<td>7.1 %</td>
+</tr>
+<tr>
+<td>Electric guitar</td>
+<td>321</td>
+<td>8.0 %</td>
+<td>35.6°</td>
+<td>16.5 %</td>
+</tr>
+<tr>
+<td>Bus</td>
+<td>338</td>
+<td>9.5 %</td>
+<td>18.7°</td>
+<td>10.9 %</td>
+</tr>
+<tr>
+<td>Tambourine</td>
+<td>687</td>
+<td>11.0 %</td>
+<td>30.4°</td>
+<td>29.3 %</td>
+</tr>
+</tbody>
+</table>
+<p>规律：打击乐、人声/笑声、部分室内瞬态声（书写、胶带、火焰、咳嗽）较好；交通/城市噪声（地铁、公交、警笛）、部分乐器（电吉他、铃鼓）和餐具类明显偏弱。</p>
+<h2 id="6-micro-seld360">6. 逐片段分布（micro SELD，360 个片段）</h2>
+<p>均值 0.583，中位数 0.591，P10 0.494，P90 0.668，最好 0.786，最差 0.362。</p>
+<p>最差 5 个片段：<code>fold1_room5_mix037</code>(0.362)、<code>fold1_room1_mix037</code>(0.384)、<code>fold1_room2_mix007</code>(0.387)、<code>fold1_room8_mix005</code>(0.396)、<code>fold1_room8_mix031</code>(0.398)。</p>
+<h2 id="7">7. 结论与分析</h2>
+<ol>
+<li><strong>召回是主要瓶颈。</strong> FN 32 347 vs TP 9 640：约 77 % 的真值 track 在段内找不到帧对齐的预测 track（LR 27 %），导致 ER 偏高、F 偏低。插入仅 3 602，说明模型"少报"而非"乱报"。</li>
+<li><strong>定位处于阈值边缘。</strong> 已匹配 track 的平均角误差 20.16°，且 30 % 的匹配对超过 20°（FP_spatial 4 170）。即使类别报对，方向也常落在阈值之外。</li>
+<li><strong>阈值不是解药。</strong> 0.2–0.7 扫描中 F 几乎不变，降低阈值只把删除换成插入；0.5 为当前最优。</li>
+<li><strong>类别不平衡/难类明显。</strong> 41 个类 F&lt;10 %，集中在交通、城市噪声和部分乐器；这些类即使有 600+ 段真值也几乎检测不到。</li>
+<li><strong>房间泛化尚可</strong>，但 room7 的 ER 偏高，room9 的定位误差偏大，可作为后续 fine-tune 的重点。</li>
+</ol>
+<h2 id="8-checkpoint-0567">8. 与 checkpoint 名称中 0.567 的差异</h2>
+<p>本地 0.600 与文件名 <code>mACCDOA-HTSAT-0.567</code> 相差 0.033，原因不是评测代码错误：</p>
+<ul>
+<li>本地只有 <code>test360_ov3</code>（360 片段，最大重叠 3）。论文的 synthetic-test-set 是 <strong>3 060 个 1 分钟片段</strong>（<code>test1800_ov1</code> + <code>test900_ov2</code> + <code>test360_ov3</code>），0.567 应是完整测试集（或训练时验证集）上的分数，二者不可直接比较。</li>
+<li>同一模型的内部验证在同一子集上给出 0.601，与本文外部评测 0.600 一致。</li>
+<li>论文 Table I 中同规模模型（CNN14-Conformer + mACCDOA）在完整合成测试集上为 ER 0.805 / F 25.4 % / LE 17.3° / LR 32.1 % / SELD 0.582，量级与本文结果一致。</li>
+</ul>
+<p>如需严格对齐 0.567，需要补下 <code>test1800_ov1</code>、<code>test900_ov2</code> 并在合并后的 3 060 片段上评测。</p>
+<h2 id="9">9. 发现的代码问题</h2>
+<p><code>src/evaluate.py</code> 的逐类打印循环用 <code>range(args.nb_classes)</code>（170），但 <code>classwise_test_scr</code> 只保留 158 个"出现类"（<code>SELD_metrics.py</code> 中按 <code>LE==180</code> 删除），因此运行到第 158 行必然 <code>IndexError</code>：</p>
+<pre><code>IndexError: index 158 is out of bounds for axis 0 with size 158
+</code></pre>
+<p>建议改为遍历 <code>len(classwise_test_scr[0])</code>，或让 <code>SELD_metrics</code> 返回类 ID 映射后再打印。本次评测用 <code>_analysis/eval_analysis.py</code> 复刻同一套公式并保留类 ID 映射，结果与 <code>evaluate.py --consolidated_score</code> 完全一致（0.600 / 22.1 / 20.2 / 27.0）。</p>
+<h2 id="10">10. 产出文件</h2>
+<pre><code class="language-bash"># 复现本报告（在 /data/PSELDNets 下，pseldnets 环境）
+python _analysis/eval_analysis.py \
+  --pred_dir logs/multi_accdoa_HTSAT_infer/runs/2026-10-21_21-48-59/submissions
+</code></pre>
+<ul>
+<li><code>_analysis/eval_analysis.py</code> — 评测脚本（修复逐类打印、增加逐房间/逐片段/检测统计）</li>
+<li><code>_analysis/results.json</code> — 本次完整结果（含逐类、逐房间、逐片段）</li>
+<li><code>_analysis/classwise.csv</code> — 158 个出现类的 ER/F/LE/LR/SELD/nref</li>
+<li><code>_analysis/thr_0.2/</code>、<code>thr_0.3/</code>、<code>thr_0.7/</code> — 阈值扫描结果</li>
+<li>预测：<code>logs/multi_accdoa_HTSAT_infer/runs/2026-10-21_21-48-59/submissions</code>（阈值 0.5）</li>
+</ul>
+</body></html>

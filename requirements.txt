@@ -1,0 +1,14 @@
+# reproduction environment (Python 3.11, CUDA 12.1)
+torch==2.2.1
+torchaudio==2.2.1
+lightning==2.2.1
+hydra-core==1.3.2
+omegaconf==2.3.0
+numpy==1.26.4
+scipy==1.14.1
+pandas==2.2.3
+h5py==3.10.0
+librosa==0.10.1
+soundfile==0.12.1
+rich==13.9.4
+tensorboard==2.21.0
